@@ -1,6 +1,7 @@
 import streamlit as st
 from openai import OpenAI
 import time
+import os
 
 # -------------------------------------------------
 # PAGE CONFIG
@@ -12,7 +13,7 @@ st.set_page_config(
 )
 
 # -------------------------------------------------
-# UI THEME & UX EFFECTS
+# UI THEME & UX
 # -------------------------------------------------
 st.markdown("""
 <style>
@@ -64,98 +65,23 @@ h1, h2 {
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------
-# OPENAI ONLINE MODE (STRICT)
+# OPENAI KEY DETECTION (CLOUD + LOCAL)
 # -------------------------------------------------
-if "OPENAI_API_KEY" not in st.secrets:
-    st.error("❌ OPENAI_API_KEY not found. Please add it in Streamlit Secrets.")
-    st.stop()
+api_key = None
 
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+# 1️⃣ Try Streamlit Cloud Secrets
+if "OPENAI_API_KEY" in st.secrets:
+    api_key = st.secrets["OPENAI_API_KEY"]
 
-# -------------------------------------------------
-# AI LOGIC (CONTEXT-AWARE REPLY)
-# -------------------------------------------------
-def generate_reply(email_text, tone):
-    prompt = f"""
-You are an AI email assistant.
+# 2️⃣ Try Environment Variable (Local)
+elif os.getenv("OPENAI_API_KEY"):
+    api_key = os.getenv("OPENAI_API_KEY")
 
-Rules:
-- Carefully read the given email
-- Understand its intent
-- Generate a relevant and complete reply
-- Use a {tone.lower()} tone
-- Reply strictly based on the email content
-
-Email:
-\"\"\"
-{email_text}
-\"\"\"
-
-Write a professional email reply.
-"""
-
-    response = client.responses.create(
-        model="gpt-4.1-mini",
-        input=prompt
-    )
-
-    return response.output_text
-
-# -------------------------------------------------
-# UI
-# -------------------------------------------------
-st.title("📧 AI-Based Email Reply Generator")
-st.subheader("Generate context-aware replies using Generative AI")
-
-st.success("✅ AI Online Mode Enabled")
-
-# ---------------- EMAIL INPUT ----------------
-st.markdown('<div class="card">', unsafe_allow_html=True)
-
-email_input = st.text_area(
-    "📩 Paste the received email",
-    height=180,
-    placeholder="Paste the email you received here..."
-)
-
-tone = st.selectbox(
-    "✍️ Select Reply Tone",
-    ["Formal", "Professional", "Friendly"]
-)
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# ---------------- GENERATE REPLY ----------------
-if st.button("✨ Generate Smart Reply"):
-    if email_input.strip() == "":
-        st.warning("Please paste an email first.")
-    else:
-        with st.spinner("AI is reading the email and generating a reply..."):
-            time.sleep(1)
-            reply = generate_reply(email_input, tone)
-
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.success("✅ AI-Generated Reply")
-        st.text_area("📤 Generated Reply", reply, height=220)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        # Copy button
-        st.markdown("""
-<button onclick="navigator.clipboard.writeText(
-    document.querySelectorAll('textarea')[1].value
-)"
-style="
-background:#22c55e;
-color:white;
-padding:10px 16px;
-border:none;
-border-radius:10px;
-font-weight:600;
-cursor:pointer;
-margin-top:10px;
-">
-📋 Copy Reply
-</button>
-""", unsafe_allow_html=True)
-
-st.toast("🚀 Saves time • Improves communication", icon="📧")
+# 3️⃣ If still not found → show clear message
+if not api_key:
+    st.error("❌ OpenAI API key not found.")
+    st.info("""
+### How to fix:
+**Streamlit Cloud**
+- Go to Manage App → Secrets
+- Add:
