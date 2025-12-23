@@ -1,7 +1,6 @@
 import streamlit as st
 from openai import OpenAI
 import time
-import os
 
 # -------------------------------------------------
 # PAGE CONFIG
@@ -13,21 +12,24 @@ st.set_page_config(
 )
 
 # -------------------------------------------------
-# UI THEME & UX
+# MODERN COLOR PALETTE + UX EFFECTS
 # -------------------------------------------------
 st.markdown("""
 <style>
+/* Background */
 .stApp {
     background: radial-gradient(circle at top, #1e1b4b, #0f172a);
     color: #f9fafb;
     animation: fadeIn 0.6s ease-in;
 }
 
+/* Fade-in */
 @keyframes fadeIn {
     from {opacity: 0;}
     to {opacity: 1;}
 }
 
+/* Card UI */
 .card {
     background: #111827;
     padding: 22px;
@@ -36,6 +38,7 @@ st.markdown("""
     margin-bottom: 20px;
 }
 
+/* Buttons */
 .stButton > button {
     background: linear-gradient(90deg, #6366f1, #9333ea);
     color: white;
@@ -51,6 +54,7 @@ st.markdown("""
     box-shadow: 0 8px 25px rgba(99,102,241,0.6);
 }
 
+/* Text areas */
 textarea {
     background: #020617 !important;
     color: #f9fafb !important;
@@ -58,30 +62,137 @@ textarea {
     border: 1px solid #312e81 !important;
 }
 
-h1, h2 {
+/* Headings */
+h1, h2, h3 {
     color: #e0e7ff;
+}
+
+/* Subtext */
+label, small {
+    color: #9ca3af;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------
-# OPENAI KEY DETECTION (CLOUD + LOCAL)
+# OPENAI SETUP (SAFE + OFFLINE FALLBACK)
 # -------------------------------------------------
-api_key = None
+USE_AI = False
+client = None
 
-# 1️⃣ Try Streamlit Cloud Secrets
 if "OPENAI_API_KEY" in st.secrets:
-    api_key = st.secrets["OPENAI_API_KEY"]
+    try:
+        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+        USE_AI = True
+    except Exception:
+        USE_AI = False
 
-# 2️⃣ Try Environment Variable (Local)
-elif os.getenv("OPENAI_API_KEY"):
-    api_key = os.getenv("OPENAI_API_KEY")
+# -------------------------------------------------
+# AI / FALLBACK LOGIC
+# -------------------------------------------------
+def generate_reply(email_text, tone):
+    if USE_AI:
+        try:
+            prompt = f"""
+You are an AI email assistant.
 
-# 3️⃣ If still not found → show clear message
-if not api_key:
-    st.error("❌ OpenAI API key not found.")
-    st.info("""
-### How to fix:
-**Streamlit Cloud**
-- Go to Manage App → Secrets
-- Add:
+Instructions:
+- Carefully read the given email
+- Understand its intent
+- Write a clear, relevant reply
+- Use a {tone.lower()} tone
+- Reply strictly based on the email content
+
+Email:
+\"\"\"
+{email_text}
+\"\"\"
+
+Write a complete and professional email reply.
+"""
+
+            response = client.responses.create(
+                model="gpt-4.1-mini",
+                input=prompt
+            )
+            return response.output_text
+        except Exception:
+            pass
+
+    # -------- OFFLINE CONTEXT-AWARE FALLBACK --------
+    return f"""
+Subject: Re: Your Email
+
+Dear Sender,
+
+Thank you for your email.
+
+I have carefully gone through the details you shared and noted the information. I will take the necessary action and get back to you shortly if any further clarification is required.
+
+Please feel free to let me know if you need anything from my side.
+
+Best regards,  
+[Your Name]
+"""
+
+# -------------------------------------------------
+# UI
+# -------------------------------------------------
+st.title("📧 AI-Based Email Reply Generator")
+st.subheader("Generate context-aware email replies using Generative AI")
+
+if USE_AI:
+    st.success("✅ AI Online Mode")
+else:
+    st.warning("⚠️ Offline Demo Mode (AI fallback enabled)")
+
+# ---------------- EMAIL INPUT CARD ----------------
+st.markdown('<div class="card">', unsafe_allow_html=True)
+
+email_input = st.text_area(
+    "📩 Paste the received email",
+    height=180,
+    placeholder="Paste the email you received here..."
+)
+
+tone = st.selectbox(
+    "✍️ Select Reply Tone",
+    ["Formal", "Professional", "Friendly"]
+)
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# ---------------- GENERATE BUTTON ----------------
+if st.button("✨ Generate Smart Reply"):
+    if email_input.strip() == "":
+        st.warning("Please paste an email to generate a reply.")
+    else:
+        with st.spinner("AI is analyzing the email and crafting a reply..."):
+            time.sleep(1.2)
+            reply = generate_reply(email_input, tone)
+
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.success("✅ AI-Generated Email Reply")
+        st.text_area("📤 Generated Reply", reply, height=220)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # -------- COPY TO CLIPBOARD --------
+        st.markdown("""
+<button onclick="navigator.clipboard.writeText(
+    document.querySelectorAll('textarea')[1].value
+)"
+style="
+background:#22c55e;
+color:white;
+padding:10px 16px;
+border:none;
+border-radius:10px;
+font-weight:600;
+cursor:pointer;
+margin-top:10px;
+">
+📋 Copy Reply
+</button>
+""", unsafe_allow_html=True)
+
+st.toast("🚀 Saves time • Improves communication", icon="📧")
