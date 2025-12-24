@@ -53,9 +53,70 @@ st.title("📧 AI-Based Email Reply Generator")
 st.subheader("Generate context-aware replies using Generative AI")
 
 # -------------------------------------------------
-# API KEY INPUT (TEMPORARY DEMO METHOD)
+# API KEY INPUT (DEMO SAFE METHOD)
 # -------------------------------------------------
 st.markdown("### 🔑 Enter OpenAI API Key (for demo)")
 api_key = st.text_input(
     "OpenAI API Key",
-    type="password"
+    type="password",
+    placeholder="sk-xxxxxxxxxxxxxxxxxxxx"
+)
+
+if not api_key:
+    st.warning("Please enter your OpenAI API key to enable AI replies.")
+    st.stop()
+
+client = OpenAI(api_key=api_key)
+st.success("✅ AI Online Mode Enabled")
+
+# -------------------------------------------------
+# AI FUNCTION
+# -------------------------------------------------
+def generate_reply(email_text, tone):
+    prompt = f"""
+You are an AI email assistant.
+
+Rules:
+- Read the email carefully
+- Understand its intent
+- Generate a clear and relevant reply
+- Use a {tone.lower()} tone
+- Reply strictly based on the given email
+
+Email:
+\"\"\"
+{email_text}
+\"\"\"
+
+Write a complete professional email reply.
+"""
+    response = client.responses.create(
+        model="gpt-4.1-mini",
+        input=prompt
+    )
+    return response.output_text
+
+# -------------------------------------------------
+# INPUT CARD
+# -------------------------------------------------
+st.markdown('<div class="card">', unsafe_allow_html=True)
+
+sender_email = st.text_input(
+    "📨 Sender's Email Address",
+    placeholder="example@gmail.com"
+)
+
+email_input = st.text_area(
+    "📩 Paste the received email",
+    height=180,
+    placeholder="Paste the email you received here..."
+)
+
+tone = st.selectbox(
+    "✍️ Select Reply Tone",
+    ["Formal", "Professional", "Friendly"]
+)
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# ---------------------
