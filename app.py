@@ -2,18 +2,12 @@ import streamlit as st
 from openai import OpenAI
 import time
 
-# -------------------------------------------------
-# PAGE CONFIG
-# -------------------------------------------------
 st.set_page_config(
     page_title="AI Email Reply Generator",
     page_icon="📧",
     layout="centered"
 )
 
-# -------------------------------------------------
-# BASIC HTML + CSS (UX)
-# -------------------------------------------------
 st.markdown("""
 <style>
 .stApp {
@@ -36,15 +30,10 @@ textarea {
 </style>
 """, unsafe_allow_html=True)
 
-# -------------------------------------------------
-# TITLE
-# -------------------------------------------------
 st.title("📧 AI-Based Email Reply Generator")
 st.subheader("Generates, copies, and prepares replies using Generative AI")
 
-# -------------------------------------------------
-# API KEY INPUT (DEMO SAFE)
-# -------------------------------------------------
+
 api_key = st.text_input(
     "🔑 Enter OpenAI API Key",
     type="password",
@@ -55,12 +44,10 @@ if not api_key:
     st.warning("Enter API key to enable AI reply generation.")
     st.stop()
 
-# Initialize client safely
+
 client = OpenAI(api_key=api_key)
 
-# -------------------------------------------------
-# AI FUNCTION (SAFE)
-# -------------------------------------------------
+
 def generate_reply(email_text, tone):
     prompt = f"""
 You are an AI email assistant.
@@ -91,9 +78,7 @@ Write a complete email reply.
             "In real deployment, this will be handled securely."
         )
 
-# -------------------------------------------------
-# INPUT UI
-# -------------------------------------------------
+
 st.markdown('<div class="card">', unsafe_allow_html=True)
 
 sender_email = st.text_input("📨 Sender Email ID")
@@ -102,9 +87,7 @@ tone = st.selectbox("✍️ Reply Tone", ["Formal", "Professional", "Friendly"])
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# -------------------------------------------------
-# GENERATE REPLY
-# -------------------------------------------------
+
 if st.button("✨ Generate Reply"):
     if not email_text.strip():
         st.warning("Please paste an email.")
@@ -121,9 +104,7 @@ if st.button("✨ Generate Reply"):
         if sender_email:
             st.info(f"Reply prepared for: {sender_email}")
 
-# -------------------------------------------------
-# COPY FUNCTION (WORKS 100%)
-# -------------------------------------------------
+
 if "reply" in st.session_state:
     st.download_button(
         "📋 Copy Reply",
