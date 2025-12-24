@@ -1,6 +1,9 @@
 import streamlit as st
 from openai import OpenAI
 import time
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # -------------------------------------------------
 # PAGE CONFIG
@@ -12,7 +15,7 @@ st.set_page_config(
 )
 
 # -------------------------------------------------
-# UI DESIGN
+# UI STYLE
 # -------------------------------------------------
 st.markdown("""
 <style>
@@ -50,24 +53,37 @@ textarea {
 # TITLE
 # -------------------------------------------------
 st.title("📧 AI-Based Email Reply Generator")
-st.subheader("Generate context-aware replies using Generative AI")
+st.subheader("Generate, copy, and send replies using Generative AI")
 
 # -------------------------------------------------
-# API KEY INPUT (DEMO SAFE METHOD)
+# API KEY INPUT (DEMO FRIENDLY)
 # -------------------------------------------------
-st.markdown("### 🔑 Enter OpenAI API Key (for demo)")
-api_key = st.text_input(
-    "OpenAI API Key",
+st.markdown("### 🔑 OpenAI API Key")
+openai_key = st.text_input(
+    "Enter OpenAI API Key",
     type="password",
-    placeholder="sk-xxxxxxxxxxxxxxxxxxxx"
+    placeholder="sk-xxxxxxxxxxxxxxxx"
 )
 
-if not api_key:
-    st.warning("Please enter your OpenAI API key to enable AI replies.")
+if not openai_key:
+    st.warning("Please enter OpenAI API key to continue.")
     st.stop()
 
-client = OpenAI(api_key=api_key)
-st.success("✅ AI Online Mode Enabled")
+client = OpenAI(api_key=openai_key)
+st.success("✅ AI Connected")
+
+# -------------------------------------------------
+# EMAIL SENDER CONFIG (SMTP)
+# -------------------------------------------------
+st.markdown("### ✉️ Sender Email Configuration (Gmail SMTP)")
+sender_email = st.text_input("Sender Gmail Address")
+sender_password = st.text_input(
+    "Gmail App Password",
+    type="password",
+    help="Use Gmail App Password, not normal password"
+)
+
+receiver_email = st.text_input("📨 Receiver Email Address")
 
 # -------------------------------------------------
 # AI FUNCTION
@@ -76,12 +92,12 @@ def generate_reply(email_text, tone):
     prompt = f"""
 You are an AI email assistant.
 
-Rules:
+Instructions:
 - Read the email carefully
-- Understand its intent
+- Understand the intent
 - Generate a clear and relevant reply
 - Use a {tone.lower()} tone
-- Reply strictly based on the given email
+- Reply strictly based on the email content
 
 Email:
 \"\"\"
@@ -97,19 +113,30 @@ Write a complete professional email reply.
     return response.output_text
 
 # -------------------------------------------------
+# SEND EMAIL FUNCTION
+# -------------------------------------------------
+def send_email(sender, password, receiver, message):
+    msg = MIMEMultipart()
+    msg["From"] = sender
+    msg["To"] = receiver
+    msg["Subject"] = "Re: Your Email"
+
+    msg.attach(MIMEText(message, "plain"))
+
+    with smtplib.SMTP("smtp.gmail.com", 587) as server:
+        server.starttls()
+        server.login(sender, password)
+        server.send_message(msg)
+
+# -------------------------------------------------
 # INPUT CARD
 # -------------------------------------------------
 st.markdown('<div class="card">', unsafe_allow_html=True)
 
-sender_email = st.text_input(
-    "📨 Sender's Email Address",
-    placeholder="example@gmail.com"
-)
-
 email_input = st.text_area(
     "📩 Paste the received email",
     height=180,
-    placeholder="Paste the email you received here..."
+    placeholder="Paste the received email here..."
 )
 
 tone = st.selectbox(
@@ -119,4 +146,44 @@ tone = st.selectbox(
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# ---------------------
+# -------------------------------------------------
+# GENERATE REPLY
+# -------------------------------------------------
+if st.button("✨ Generate Reply"):
+    if not email_input.strip():
+        st.warning("Please paste the email content.")
+    else:
+        with st.spinner("AI is generating reply..."):
+            time.sleep(1)
+            reply = generate_reply(email_input, tone)
+
+        st.session_state.reply = reply
+
+        st.success("✅ Reply Generated")
+        st.text_area("📤 Generated Reply", reply, height=220)
+
+# -------------------------------------------------
+# COPY & SEND
+# -------------------------------------------------
+if "reply" in st.session_state:
+
+    st.download_button(
+        "📋 Copy Reply",
+        st.session_state.reply,
+        file_name="email_reply.txt"
+    )
+
+    if st.button("📧 Send Reply"):
+        if not sender_email or not sender_password or not receiver_email:
+            st.error("Please fill sender and receiver email details.")
+        else:
+            try:
+                send_email(
+                    sender_email,
+                    sender_password,
+                    receiver_email,
+                    st.session_state.reply
+                )
+                st.success("✅ Email sent successfully!")
+            except Exception as e:
+                st.error("❌ Failed to send email. Check credentials.")
